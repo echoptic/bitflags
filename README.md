@@ -41,4 +41,4 @@ pub fn main() !void {
 }
 ```
 ## Zig Version Support
-Currently supported Zig version is the latest master release.
+Currently supported Zig version is the latest master.
