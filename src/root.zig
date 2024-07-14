@@ -1,10 +1,49 @@
 const std = @import("std");
 const testing = std.testing;
 
+const unused_prefix = "__unused";
+
+pub fn Formatter(comptime T: type) type {
+    return struct {
+        data: T,
+        pub fn format(
+            self: @This(),
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) @TypeOf(writer).Error!void {
+            _ = fmt; // autofix
+            const info = @typeInfo(T).Struct;
+            try writer.writeAll(@typeName(T));
+            try writer.writeAll("{");
+            var i: usize = 0;
+            inline for (info.fields) |f| {
+                if (comptime std.mem.startsWith(u8, f.name, unused_prefix)) {
+                    continue;
+                }
+                defer i += 1;
+                if (i == 0) {
+                    try writer.writeAll(" .");
+                } else {
+                    try writer.writeAll(", .");
+                }
+                try writer.writeAll(f.name);
+                try writer.writeAll(" = ");
+                try std.fmt.formatType(@field(self.data, f.name), "any", options, writer, 1);
+            }
+            try writer.writeAll(" }");
+        }
+    };
+}
+
+pub fn fmtBitflags(data: anytype) Formatter(@TypeOf(data)) {
+    return .{ .data = data };
+}
+
 fn paddingField(comptime signedness: std.builtin.Signedness, comptime bit_count: u16, n: comptime_int) std.builtin.Type.StructField {
     const T = std.meta.Int(signedness, bit_count);
     return std.builtin.Type.StructField{
-        .name = std.fmt.comptimePrint("__unused{}", .{n}),
+        .name = std.fmt.comptimePrint(unused_prefix ++ "{}", .{n}),
         .type = T,
         .default_value = &@as(T, 0),
         .is_comptime = false,
